@@ -12,17 +12,23 @@ from ml.model import (
     save_model,
     train_model,
 )
-# TODO: load the cencus.csv data
-project_path = "Your path here"
+
+
+project_path = os.path.dirname(os.path.abspath(__file__))
 data_path = os.path.join(project_path, "data", "census.csv")
-print(data_path)
-data = None # your code here
 
-# TODO: split the provided data to have a train dataset and a test dataset
-# Optional enhancement, use K-fold cross validation instead of a train-test split.
-train, test = None, None# Your code here
+# Load the Census data and remove spaces following CSV delimiters.
+data = pd.read_csv(data_path, skipinitialspace=True)
+data.columns = data.columns.str.strip()
 
-# DO NOT MODIFY
+# Split the data into training and testing datasets.
+train, test = train_test_split(
+    data,
+    test_size=0.20,
+    random_state=42,
+    stratify=data["salary"],
+)
+
 cat_features = [
     "workclass",
     "education",
@@ -34,13 +40,13 @@ cat_features = [
     "native-country",
 ]
 
-# TODO: use the process_data function provided to process the data.
+# Process the training and testing datasets.
 X_train, y_train, encoder, lb = process_data(
-    # your code here
-    # use the train dataset 
-    # use training=True
-    # do not need to pass encoder and lb as input
-    )
+    train,
+    categorical_features=cat_features,
+    label="salary",
+    training=True,
+)
 
 X_test, y_test, _, _ = process_data(
     test,
@@ -51,37 +57,65 @@ X_test, y_test, _, _ = process_data(
     lb=lb,
 )
 
-# TODO: use the train_model function to train the model on the training dataset
-model = None # your code here
+# Train the classification model.
+model = train_model(X_train, y_train)
 
-# save the model and the encoder
-model_path = os.path.join(project_path, "model", "model.pkl")
+# Save the model, categorical encoder, and label binarizer.
+model_directory = os.path.join(project_path, "model")
+os.makedirs(model_directory, exist_ok=True)
+
+model_path = os.path.join(model_directory, "model.pkl")
+encoder_path = os.path.join(model_directory, "encoder.pkl")
+lb_path = os.path.join(model_directory, "lb.pkl")
+
 save_model(model, model_path)
-encoder_path = os.path.join(project_path, "model", "encoder.pkl")
 save_model(encoder, encoder_path)
+save_model(lb, lb_path)
 
-# load the model
-model = load_model(
-    model_path
-) 
+# Confirm that the saved model can be loaded.
+model = load_model(model_path)
 
-# TODO: use the inference function to run the model inferences on the test dataset.
-preds = None # your code here
+# Generate predictions for the test dataset.
+preds = inference(model, X_test)
 
-# Calculate and print the metrics
-p, r, fb = compute_model_metrics(y_test, preds)
-print(f"Precision: {p:.4f} | Recall: {r:.4f} | F1: {fb:.4f}")
+# Calculate and display overall model metrics.
+precision, recall, fbeta = compute_model_metrics(y_test, preds)
+print(
+    f"Precision: {precision:.4f} | "
+    f"Recall: {recall:.4f} | "
+    f"F1: {fbeta:.4f}"
+)
 
-# TODO: compute the performance on model slices using the performance_on_categorical_slice function
-# iterate through the categorical features
-for col in cat_features:
-    # iterate through the unique values in one categorical feature
-    for slicevalue in sorted(test[col].unique()):
-        count = test[test[col] == slicevalue].shape[0]
-        p, r, fb = performance_on_categorical_slice(
-            # your code here
-            # use test, col and slicevalue as part of the input
-        )
-        with open("slice_output.txt", "a") as f:
-            print(f"{col}: {slicevalue}, Count: {count:,}", file=f)
-            print(f"Precision: {p:.4f} | Recall: {r:.4f} | F1: {fb:.4f}", file=f)
+# Calculate performance for every value of every categorical feature.
+slice_output_path = os.path.join(project_path, "slice_output.txt")
+
+with open(slice_output_path, "w") as slice_file:
+    for column_name in cat_features:
+        for slice_value in sorted(test[column_name].unique()):
+            count = test[test[column_name] == slice_value].shape[0]
+
+            precision, recall, fbeta = performance_on_categorical_slice(
+                test,
+                column_name,
+                slice_value,
+                cat_features,
+                "salary",
+                encoder,
+                lb,
+                model,
+            )
+
+            print(
+                f"{column_name}: {slice_value}, Count: {count:,}",
+                file=slice_file,
+            )
+            print(
+                f"Precision: {precision:.4f} | "
+                f"Recall: {recall:.4f} | "
+                f"F1: {fbeta:.4f}",
+                file=slice_file,
+            )
+
+print(f"Model saved to {model_path}")
+print(f"Encoder saved to {encoder_path}")
+print(f"Slice metrics saved to {slice_output_path}")
