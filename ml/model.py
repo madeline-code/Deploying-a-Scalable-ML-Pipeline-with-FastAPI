@@ -1,12 +1,14 @@
 import pickle
-from sklearn.metrics import fbeta_score, precision_score, recall_score
-from ml.data import process_data
-# TODO: add necessary import
 
-# Optional: implement hyperparameter tuning.
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import fbeta_score, precision_score, recall_score
+
+from ml.data import process_data
+
+
 def train_model(X_train, y_train):
     """
-    Trains a machine learning model and returns it.
+    Train and return a random forest classification model.
 
     Inputs
     ------
@@ -14,18 +16,20 @@ def train_model(X_train, y_train):
         Training data.
     y_train : np.array
         Labels.
+
     Returns
     -------
     model
         Trained machine learning model.
     """
-    # TODO: implement the function
-    pass
+    model = RandomForestClassifier(random_state=42)
+    model.fit(X_train, y_train)
+    return model
 
 
 def compute_model_metrics(y, preds):
     """
-    Validates the trained machine learning model using precision, recall, and F1.
+    Calculate precision, recall, and F1 score.
 
     Inputs
     ------
@@ -33,6 +37,7 @@ def compute_model_metrics(y, preds):
         Known labels, binarized.
     preds : np.array
         Predicted labels, binarized.
+
     Returns
     -------
     precision : float
@@ -46,83 +51,97 @@ def compute_model_metrics(y, preds):
 
 
 def inference(model, X):
-    """ Run model inferences and return the predictions.
+    """
+    Run model inference and return predictions.
 
     Inputs
     ------
-    model : ???
+    model
         Trained machine learning model.
     X : np.array
         Data used for prediction.
+
     Returns
     -------
     preds : np.array
         Predictions from the model.
     """
-    # TODO: implement the function
-    pass
+    return model.predict(X)
+
 
 def save_model(model, path):
-    """ Serializes model to a file.
+    """
+    Serialize a model or encoder to a file.
 
     Inputs
     ------
     model
-        Trained machine learning model or OneHotEncoder.
+        Trained machine learning model or categorical encoder.
     path : str
-        Path to save pickle file.
+        Path where the pickle file will be saved.
     """
-    # TODO: implement the function
-    pass
+    with open(path, "wb") as file:
+        pickle.dump(model, file)
+
 
 def load_model(path):
-    """ Loads pickle file from `path` and returns it."""
-    # TODO: implement the function
-    pass
+    """
+    Load and return a serialized object.
+    """
+    with open(path, "rb") as file:
+        return pickle.load(file)
 
 
 def performance_on_categorical_slice(
-    data, column_name, slice_value, categorical_features, label, encoder, lb, model
+    data,
+    column_name,
+    slice_value,
+    categorical_features,
+    label,
+    encoder,
+    lb,
+    model,
 ):
-    """ Computes the model metrics on a slice of the data specified by a column name and
-
-    Processes the data using one hot encoding for the categorical features and a
-    label binarizer for the labels. This can be used in either training or
-    inference/validation.
+    """
+    Calculate model performance for one categorical data slice.
 
     Inputs
     ------
     data : pd.DataFrame
-        Dataframe containing the features and label. Columns in `categorical_features`
+        Data containing the model features and label.
     column_name : str
-        Column containing the sliced feature.
+        Categorical column used to select the slice.
     slice_value : str, int, float
-        Value of the slice feature.
-    categorical_features: list
-        List containing the names of the categorical features (default=[])
+        Value used to select the slice.
+    categorical_features : list
+        Names of the categorical features.
     label : str
-        Name of the label column in `X`. If None, then an empty array will be returned
-        for y (default=None)
-    encoder : sklearn.preprocessing._encoders.OneHotEncoder
-        Trained sklearn OneHotEncoder, only used if training=False.
-    lb : sklearn.preprocessing._label.LabelBinarizer
-        Trained sklearn LabelBinarizer, only used if training=False.
-    model : ???
-        Model used for the task.
+        Name of the label column.
+    encoder
+        Fitted one-hot encoder.
+    lb
+        Fitted label binarizer.
+    model
+        Trained classification model.
 
     Returns
     -------
     precision : float
     recall : float
     fbeta : float
-
     """
-    # TODO: implement the function
+    data_slice = data[data[column_name] == slice_value]
+
     X_slice, y_slice, _, _ = process_data(
-        # your code here
-        # for input data, use data in column given as "column_name", with the slice_value 
-        # use training = False
+        data_slice,
+        categorical_features=categorical_features,
+        label=label,
+        training=False,
+        encoder=encoder,
+        lb=lb,
     )
-    preds = None # your code here to get prediction on X_slice using the inference function
+
+    preds = inference(model, X_slice)
     precision, recall, fbeta = compute_model_metrics(y_slice, preds)
+
     return precision, recall, fbeta
